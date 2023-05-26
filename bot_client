@@ -1,0 +1,29 @@
+import socket
+import ssl
+import json
+
+sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+sslcontext.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
+sslcontext.options &= ~ssl.OP_NO_SSLv3
+
+HOST = "api.telegram.org"
+PORT = 8443
+
+msg = 'Hello World!'
+header = "POST /bot6040427045:AAGKubfcG3zd3CX4edoVGYBZ35B-k3qNmis/sendMessage HTTP/1.1\r\nHost: files.ctrl.uz\r\nContent-Type:\
+ application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}".format(len(msg), msg)
+
+sd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sd = sslcontext.wrap_socket(sd, server_hostname=HOST)
+sd.connect((HOST, PORT))
+
+# Отправка запроса
+sd.sendall(header.encode())
+
+# Получение ответа
+response = sd.recv(1024).decode()
+
+sd.shutdown(socket.SHUT_RDWR)
+
+# Закрытие соединения
+sd.close()
