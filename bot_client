@@ -7,7 +7,7 @@ sslcontext.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
 sslcontext.options &= ~ssl.OP_NO_SSLv3
 
 HOST = "api.telegram.org"
-PORT = 8443
+PORT = 443
 
 msg = 'Hello World!'
 header = "POST /bot6040427045:AAGKubfcG3zd3CX4edoVGYBZ35B-k3qNmis/sendMessage HTTP/1.1\r\nHost: files.ctrl.uz\r\nContent-Type:\
