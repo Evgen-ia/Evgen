@@ -2,24 +2,53 @@ import socket
 import ssl
 import json
 
-sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-sslcontext.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
-sslcontext.options &= ~ssl.OP_NO_SSLv3
-#print(sslcontext.get_ciphers())
 
-SERVER_HOST = '0.0.0.0'
-SERVER_PORT = 8443
+class Bot:
+    def __init__(self, token):
+        self.token = token
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket = sslcontext.wrap_socket(server_socket)
+    @staticmethod
+    def send_message(msg: str):
+        sslcontext = ssl.create_default_context()
+        HOST = 'api.telegram.org'
+        PORT = 443
 
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server_socket.bind((SERVER_HOST, SERVER_PORT))
-server_socket.listen(1)
-print('Listening on port %s ...' % SERVER_PORT)
+        header = 'POST /bot6040427045:AAGKubfcG3zd3CX4edoVGYBZ35B-k3qNmis/sendMessage HTTP/1.1\r\nHost:\
+         api.telegram.org\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s'
+        json_response = json.dumps(
+            {
+                'chat_id': 921325020,
+                'text': msg
+            }
+        )
+        header = header % (len(json_response), json_response)
 
-try:
-    while True:
+        sd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sd = sslcontext.wrap_socket(sd, server_hostname=HOST)
+        sd.connect((HOST, PORT))
+
+        sd.sendall(header.encode())
+        response = sd.recv(1024).decode()
+        return response
+
+    @staticmethod
+    def listening_on_tg():
+        sslcontext = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        sslcontext.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
+        sslcontext.options &= ~ssl.OP_NO_SSLv3
+        # print(sslcontext.get_ciphers())
+
+        SERVER_HOST = '0.0.0.0'
+        SERVER_PORT = 8443
+
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket = sslcontext.wrap_socket(server_socket)
+
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind((SERVER_HOST, SERVER_PORT))
+        server_socket.listen(1)
+        print('Listening on port %s ...' % SERVER_PORT)
+
         try:
             client_connection, client_address = server_socket.accept()   # Wait for client connections
 
@@ -27,37 +56,19 @@ try:
             print(request)
 
             short_response = 'HTTP/1.1 200 OK\r\n\r\n'  # Send HTTP response
-            # full_response = 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s'
-            # json_response = json.dumps(
-            #     {
-            #         'chat_id': 921325020,
-            #         'text': 'Hello World!'
-            #     }
-            # )
-            # full_response = full_response % (len(json_response), json_response)
-            # print(full_response)
             encoded = short_response.encode()
             # print(encoded)
             client_connection.sendall(encoded)
             client_connection.close()
         except Exception as e:
             print(e)
-finally:
-    server_socket.close()  # Close socket
+        server_socket.close()  # Close socket
 
-# header = "POST /bot6040427045:AAGKubfcG3zd3CX4edoVGYBZ35B-k3qNmis/sendMessage HTTP/1.1\r\nHost: files.ctrl.uz\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}".format(
-#     len(msg), msg)
-#
-# # Подготовка подключения
-# sd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# sd = ssl.wrap_socket(sd)
-# sd.connect((host, port))
 
-# Отправка запроса
-# sd.sendall(header.encode())
+Bot.send_message("I`m good, thanks")
 
-# Получение ответа
-# response = sd.recv(1024).decode()
+while True:
+    Bot.listening_on_tg()
 
-# Закрытие соединения
-sd.close()
+
+
