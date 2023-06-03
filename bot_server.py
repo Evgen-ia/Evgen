@@ -181,12 +181,12 @@ class Bot:
 def answer_callback(request):
     chat_id = request['message']['chat']['id']
     text_from_user = request['message']['text']
-    if(text_from_user == '/sta'):
+    if(text_from_user == 'start'):
         cursor.execute(f"INSERT INTO Sessions (Status, Chat_ID) VALUES ('started', {chat_id})")
         conn.commit()
-        return '/start'
+        return 'hi, i am your music bot'
 
-    else: return 'ты че про мою маму вякнул?'
+    else: return 'got you?'
 
 
 def message_received(json_request):
