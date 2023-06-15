@@ -6,17 +6,24 @@ import logging
 from threading import Thread
 import math
 import random
+import gzip
 
 import requests
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
+
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.DEBUG)
+requests_log.propagate = True
 
 conn = sqlite3.connect('/home/evgenia//musicparty/my_db.db')
 cursor = conn.cursor()
 
 API_TOKEN = '5689948994:AAF2t_F-XVKejZvyHe_h0nH_bxDwsrxJS64'
 
-endpoint_base = "https://music.yandex.net/"
+endpoint_base = "https://api.music.yandex.net/"
 my_token = "OAuth y0_AgAAAAAumIzbAAAgQwAAAADbGftvzdzGGejhT96Ze_Lqx4dctLXppSI"
 
 cursor.execute('''DROP TABLE IF EXISTS "Users"''')
@@ -98,7 +105,7 @@ cursor.execute('''
 
  ''')
 
-conn.commit()    # todo the function
+conn.commit()
 
 
 class Bot:
@@ -126,7 +133,7 @@ class Bot:
             while True:
                 if self.answer_queue:
                     answer_string, chat_id = self.answer_queue.pop(0)
-                    print("resp = ", self.send_message(answer_string, chat_id))
+                    self.send_message(answer_string, chat_id)
 
         thread = Thread(target=answer_loop)
         thread.start()
@@ -157,12 +164,19 @@ class Bot:
         response = sd.recv(1024).decode()
         return response
 
-    def listen_step(self):
+    def listen(self):
         try:
+            print('tried')
             client_connection, client_address = self.server_socket.accept()   # Wait for client connections
-            cl = HTTP()
+            cl = HTTPS()
             request = cl.recv(client_connection)
-            # print("request = ",  request)
+            print("request = ",  request)
+
+            # parse request, get json
+            header, body = request
+            if len(body) < 2:
+                print("wrong request " + header + body)
+                return 'wrong request 178'
 
             short_response = 'HTTP/1.1 200 OK\r\n\r\n'  # Send HTTP response
             encoded = short_response.encode()
@@ -170,23 +184,20 @@ class Bot:
             client_connection.sendall(encoded)
             client_connection.close()
 
-            # parse request, get json
-            header, body = request
-            if len(body) < 2:
-                print("wrong request " + header + body)
-                return
-
+            print('body decoded', body.decode())
             json_request = json.loads(body.decode())
-            print(json_request, "the json")
+            # json_request = json.loads(str_request)
+
+            # print(json_request, "the json")
             chat_id = json_request['message']['chat']['id']
             # text_from_user = json_request['message']['text']
             answer_string = self.answer_callback(json_request)
-            # print("answer_string = ", answer_string)
+            print("answer_string = ", answer_string)
             self.answer_queue.append((answer_string, chat_id,))
             # print("", self.answer_queue)
-            #self.send_message(answer_string, chat_id)
+            # self.send_message(answer_string, chat_id)
         except Exception as e:
-            print('exeption = ', e)
+            print('exeption189: ', e)
 
 
 def music_answer_callback(json_request):
@@ -197,7 +208,10 @@ def music_answer_callback(json_request):
     if text_from_user == '/start':
         cursor.execute(f"INSERT INTO Sessions (Status, Chat_ID) VALUES ('started', {chat_id})")
         conn.commit()
-        answer = 'начали'
+        cursor.execute(f'SELECT ses_id FROM Sessions WHERE Chat_Id = {chat_id}')
+        result = cursor.fetchone()
+        print('res =', result[0])
+        answer = 'Hi! We`ve just sterted your music party)'
 
     if text_from_user == '/finish':
         cursor.execute(f"SELECT MAX(Ses_Id) FROM Sessions WHERE Chat_Id = {chat_id}")
@@ -212,7 +226,7 @@ def music_answer_callback(json_request):
     if exists is None:
         return 'сессия не открыта'     # creating_final(chat_id)
 
-    # yandex = YandexAPI(my_token)
+    yandex = YandexAPI(my_token)
     user_email = None
     pll_kind = None
     track_id = None
@@ -230,33 +244,37 @@ def music_answer_callback(json_request):
         track_id = parts[6].split('?')[0]
         print("got track_id, album_id = ", track_id, album_id)
 
-    print('str 233')
     if track_id is not None:
-        print('str 235')
-        # info1_dict = create_playlist('extra song')
+        # print('got in track_id 238')
+        # info1_dict = yandex.create_playlist('extra song')
+        # print('created pll extra song')
 
-        endp1 = endpoint_base + "yampolskaya.eugenie/playlists/create"
-        data1 = {"visibility": "public", "title": "extra song"}
+        endp1 = endpoint_base + "/users/yampolskaya.eugenie/playlists/create"
+        data1 = {"visibility": "public", "title": "song1"}
         headers1 = {"Authorization": my_token}
-
+        # print(endp1)
+        # print(data1)
+        # print(headers1)
         info1_json = requests.post(endp1, data=data1, headers=headers1).json()  # creating playlist
-
         info1_str = json.dumps(info1_json)
         info1_dict = json.loads(info1_str)
+        # print(info1_dict)
+
         song_pll_kind = str(info1_dict["result"]["kind"])
         revis = str(info1_dict["result"]["revision"])
 
         diff = [{"op": "insert", "at": 0, "tracks": [{"id": track_id, "albumId": album_id}]}]
 
         endpoint2 = "https://api.music.yandex.net/users/781749467/playlists/" + song_pll_kind + "/change"
+        # print(endpoint2)
         data2 = {"diff": json.dumps(diff), "revision": revis}
+        # print(data2)
         headers2 = {"Authorization": my_token}
-
-        requests.post(url=endpoint2, data=data2, headers=headers2).json()
-        user_email = "yampolskaya.eugenie"
-        print("внутри хендлера, это имейл - ", user_email)
+        result = requests.post(url=endpoint2, data=data2, headers=headers2)
+        # print(result)
         pll_kind = song_pll_kind
-        answer = f"сделал сонгу: user_email={user_email}, playlist_kind={pll_kind}"
+        answer = f"сделал сонгу: user_email=yampolskaya.eugenie, playlist_kind={pll_kind}"
+
     if user_email is not None:
         owner_uid = uid_from_email(user_email)
         cursor.execute('SELECT Ses_Id FROM Sessions ORDER BY Ses_Id DESC LIMIT 1')
@@ -281,11 +299,10 @@ def music_answer_callback(json_request):
     return answer
 
 
-def uid_from_email(user_email: str) -> str:    # only trial, deleate when YandexAPI ready
+def uid_from_email(user_email: str) -> str:
     endpoint1 = endpoint_base + str(user_email) + "/playlists/list"
     headers1 = {"Authorization": my_token}
     info1_json = requests.get(endpoint1, headers=headers1).json()
-
     info1_str = json.dumps(info1_json)
     info1_dict = json.loads(info1_str)
     # print("uid_from_email_info = ", info1_dict)
@@ -294,7 +311,7 @@ def uid_from_email(user_email: str) -> str:    # only trial, deleate when Yandex
     return owner_uid
 
 
-class HTTP:
+class HTTPS:
     http_header_delimiter = b'\r\n\r\n'
     content_length_field = b'Content-Length:'
 
@@ -317,6 +334,7 @@ class HTTP:
         for line in header.split(b'\r\n'):
             if cls.content_length_field in line:
                 return int(line[len(cls.content_length_field):])
+
         return 0
 
     def read_until(self, sock, condition, length_start=0, chunk_size=4096):
@@ -324,10 +342,10 @@ class HTTP:
         chunk = bytes()
         length = length_start
         try:
-            print('here')
+            # print('here')
             while not condition(length, chunk):
                 chunk = sock.recv(chunk_size)
-                print('condition', condition, 'chunk = ', chunk.decode())
+                # print('condition', condition, 'chunk = ', chunk.decode())
                 if not chunk:
                     break
                 else:
@@ -339,13 +357,13 @@ class HTTP:
         return data
 
     def end_of_header(self, length, data):
-            return b'\r\n\r\n' in data
+        return b'\r\n\r\n' in data
 
     def end_of_content(self, length, data):
         return self.content_length <= int(length)
 
     def recv(self, sock):
-        # read until at end of header
+        # read until end of header
         data = self.read_until(sock, self.end_of_header)
 
         # separate our body and header
@@ -359,61 +377,103 @@ class HTTP:
 
         return self.header, self.body
 
-#
-# class YandexAPI:
-#     def __init__(self, token):
-#         self.host = "api.music.yandex.ru"
-#         self.port = 80
-#         self.token = token
-#
-#     def create_playlist(self, title):
-#         print('in yandex.create_playlist')
-#         endpoint = endpoint_base + "yampolskaya.eugenie/playlists/create"
-#         data = {"visibility": "public", "title": title}
-#         body = "\r\n".join([f"{key}: {value}" for key, value in data.items()])
-#         headers = f"POST {endpoint} HTTP/1.1\r\nHost: {self.host}\r\nAuthorization: {my_token}\r\nContent-Type: application/json\r\nContent-Length:{len(json.dumps(body))}\r\n\r\n"
-#
-#         # Create a socket connection
-#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#         sock.connect((self.host, self.port))
-#
-#         print(headers, body)
-#
-#         # Send the request
-#         request = headers.encode('utf-8') + json.dumps(data).encode('utf-8')
-#         sock.sendall(request)
-#
-#         cl = HTTP()
-#         response_head, response_body = cl.recv(sock)
-#
-#         info = json.loads(response_body)
-#         print(info)
-#         return info
-#
-#     def uid_from_email(self, user_email):
-#         endpoint = endpoint_base + str(user_email) + "/playlists/list"
-#         headers = "GET %s HTTP/1.1\r\nHost: %s\r\nAuthorization: my_token\r\n\r\n" % (endpoint, self.host)
-#
-#         # Create a socket connection
-#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#         sock.connect((self.host, self.port))
-#
-#         # Send the request
-#         request = headers.encode('utf-8')
-#         sock.sendall(request)
-#
-#         cl = HTTP()
-#         response_head, response_body = cl.recv(sock)
-#         # print("uid_from_email_info = ", info1_dict)
-#         owner_uid = str(response_body["result"][0]["owner"]["uid"])
-#
-#         return owner_uid
+
+class YandexAPI:
+    def __init__(self, token):
+        self.host = "api.music.yandex.net"
+        self.port = 443
+        self.token = token
+
+    def create_playlist(self, title: str) -> json:
+        print('in yandex.create_playlist')
+        body = f"visibility=public&title={title}"
+        encoded_body = body.encode('utf-8')
+
+        request = (
+            f"POST /users/781749467/playlists/create HTTP/1.1\r\n"
+            f"Host: " + self.host + f"\r\n"
+            f"Content-Type: application/x-www-form-urlencoded;charset=utf-8\r\n"  
+            f"Accept-Encoding: gzip, deflate\r\n"
+            f"Accept: */*\r\n"
+            f"User-Agent: Yandex-Music-API\r\n"
+            f"Content-Length: " + str(len(encoded_body)) + f"\r\n"
+            f"Authorization: " + self.token + f"\r\n"
+            f"Connection: keep-alive\r\n\r\n" +
+            body
+        )
+
+        encoded = request.encode('utf-8')
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((self.host, self.port))
+        ssl_sock = ssl.wrap_socket(sock)
+
+        ssl_sock.write(encoded)
+
+        cl = HTTPS()
+        data = cl.recv(ssl_sock)
+
+        ssl_sock.close()
+
+        sock.close()
+
+        return data
+
+    def uid_from_email(self, user_email):
+        request = f"GET /users/yampolskaya.eugenie/playlists/list HTTP/1.1\r\n" \
+                  f"Host: {self.host}\r\n" \
+                  f"Authorization: OAuth y0_AgAAAAAumIzbAAAgQwAAAADbGftvzdzGGejhT96Ze_Lqx4dctLXppSI\r\n" \
+                  f"Connection: keep-alive\r\n\r\n"
+
+        # Create a socket connection
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((self.host, self.port))
+
+        # Send the request
+        request = request.encode('utf-8')
+        sock.sendall(request)
+
+        cl = HTTPS()
+        response_head, response_body = cl.recv(sock)
+        print("uid_from_email_info = ", response_body)
+        owner_uid = str(response_body["result"][0]["owner"]["uid"])
+
+        return owner_uid
+
+
+def recv_chunks(sock):
+    chunk_size = 4096
+    data = b''
+
+    while True:
+        inf = b''
+
+        inf += sock.recv(chunk_size)
+        # with gzip.GzipFile(fileobj=inf, mode='rb') as gz_file:
+        #     # Чтение исходных данных из распакованного потока
+        #     uncompressed_data = gz_file.read()
+        # print('\ninf =', uncompressed_data)
+
+        # Получаем размер чанка из прочитанных данных
+        # chunk_size_str, size_data = inf.split(b'\r\n', 1)
+        # chunk_size = int(chunk_size_str, 16)
+        data += sock.recv(chunk_size)
+        print('\n data =',  data.decode())          # gzip.decompress(
+
+        _ = sock.recv(2)
+
+        if inf == 0:
+            break
+
+    return data
 
 
 def creating_final(chat_id: int) -> str:
+    # print('\n start yandex \n')
     # yandex = YandexAPI(my_token)
     # info1_dict = yandex.create_playlist("PartyBot playlist")
-
+    # print('\n finish yandex \n')
+    print('in final')
     endpoint1 = endpoint_base + "yampolskaya.eugenie/playlists/create"
     data1 = {"visibility": "public", "title": "Playlist from bot"}
     headers1 = {"Authorization": my_token}
@@ -426,8 +486,7 @@ def creating_final(chat_id: int) -> str:
     new_pll_kind = str(info1_dict["result"]["kind"])
     revis = info1_dict["result"]["revision"]
 
-    ratings = user_rank()
-    print("ratings = ", ratings)
+
     # print("\nЩа будут айдишки сессий \n")
     # cursor.execute("SELECT ses_id FROM sessions")
     # idss = cursor.fetchall()
@@ -444,7 +503,7 @@ def creating_final(chat_id: int) -> str:
     num_results = len(results)
     # print(f"Number of results: {num_results}")
     print(f"Results: {results}")
-
+    n: int = 0
     list_of_all_tracks = []
     for row in results:
         # print("рас-рас\n")
@@ -457,7 +516,7 @@ def creating_final(chat_id: int) -> str:
         info_d = json.loads(info_str)
         track_count = info_d["result"]["trackCount"]
         print("trackCount = ", track_count)
-        n = 0  #TODO
+        n = track_count/5
         skip_iterations = set(random.sample(range(track_count), n))
         i = 0
         while i < track_count:
@@ -478,8 +537,6 @@ def creating_final(chat_id: int) -> str:
 
     requests.post(url=endpoint2, data=data2, headers=headers2).json()
     revis += 1
-    n = math.ceil(i/3)
-    print("n =", n)
     add_recommendations("781749467", int(new_pll_kind), n, revis)
     return "https://music.yandex.ru/users/yampolskaya.eugenie/playlists/" + new_pll_kind + "?utm_medium=copy_link"
 
@@ -510,44 +567,7 @@ def add_recommendations(user_email: str, kind: int, n: int, revis: int):
     requests.post(url=endpoint2, data=data2, headers=headers2).json()
 
 
-def user_rank():
-    cursor.execute('SELECT * FROM Reactions')
-    reactions = cursor.fetchall()
-    print("мы в user_rank, вот инфа из библиотеки:", reactions)
-    user_likes = {}
-
-    for reaction in reactions:
-        user_id = reaction[1]
-        like_value = 1 if reaction[3] == 'like' else -1
-        user_likes[user_id] = user_likes.get(user_id, 0) + like_value
-
-    total_likes = sum(user_likes.values())
-    user_ratings = []
-
-    for user_id, likes in user_likes.items():
-        rating = round(8 * likes / total_likes) + 2
-        user_ratings.append((user_id, rating))
-
-    print("\n мы в user_rank, вот рейтинги: ", user_ratings)
-    return user_ratings
-
-
-bot = Bot('6040427045:AAGKubfcG3zd3CX4edoVGYBZ35B-k3qNmis', music_answer_callback)
-#bot.listen_step()
-# print(bot.send_message("I`m good, thanks", 921325020))
-
-while True:
-    bot.listen_step()
-
-
-
-    # def myreceive(self):
-    #     chunks = []
-    #     bytes_recd = 0
-    #     while bytes_recd < MSGLEN:
-    #         chunk = self.sock.recv(min(MSGLEN - bytes_recd, 2048))
-    #         if chunk == b'':
-    #             raise RuntimeError("socket connection broken")
-    #         chunks.append(chunk)
-    #         bytes_recd = bytes_recd + len(chunk)
-    #     return b''.join(chunks)
+if __name__ == '__main__':
+    bot = Bot('6040427045:AAGKubfcG3zd3CX4edoVGYBZ35B-k3qNmis', music_answer_callback)
+    while True:
+        bot.listen()
