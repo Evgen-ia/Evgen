@@ -1,6 +1,3 @@
-import os
-os.environ['PYTHONASYNCIODEBUG'] = '1'
-import asyncio
 import requests
 import json
 import sqlite3
@@ -15,25 +12,27 @@ from yandex_music import Client
 
 import aiohttp
 
-async def on_request_start(
-        session, trace_config_ctx, params):
-    print(params)
+#
+# async def on_request_start(
+#         session, trace_config_ctx, params):
+#     print(params)
+#
+#
+# async def on_request_end(session, trace_config_ctx, params):
+#     print("Ending request")
+#
+# trace_config = aiohttp.TraceConfig()
+# trace_config.on_request_start.append(on_request_start)
+# trace_config.on_request_end.append(on_request_end)
 
-async def on_request_end(session, trace_config_ctx, params):
-    print("Ending request")
-
-trace_config = aiohttp.TraceConfig()
-trace_config.on_request_start.append(on_request_start)
-trace_config.on_request_end.append(on_request_end)
-
-logging.basicConfig(level=logging.DEBUG)
-
-# You must initialize logging, otherwise you'll not see debug output.
-logging.basicConfig()
-logging.getLogger().setLevel(logging.DEBUG)
-requests_log = logging.getLogger("requests.packages.urllib3")
-requests_log.setLevel(logging.DEBUG)
-requests_log.propagate = True
+# logging.basicConfig(level=logging.DEBUG)
+#
+# # You must initialize logging, otherwise you'll not see debug output.
+# logging.basicConfig()
+# logging.getLogger().setLevel(logging.DEBUG)
+# requests_log = logging.getLogger("requests.packages.urllib3")
+# requests_log.setLevel(logging.DEBUG)
+# requests_log.propagate = True
 
 API_TOKEN = '5689948994:AAF2t_F-XVKejZvyHe_h0nH_bxDwsrxJS64'
 
@@ -148,9 +147,8 @@ def user_rank():
         rating = round(8 * likes / total_likes) + 2
         user_ratings.append((user_id, rating))
 
-    print("\n мы в user_rank, вотрейтинги:", user_ratings)
+    print("\n мы в user_rank, вот рейтинги: ", user_ratings)
     return user_ratings
-
 
 
 def kind_from_title(info_d: dict, title: str) -> str:
@@ -175,9 +173,9 @@ def uid_from_email(user_email: str) -> str:
     endpoint1 = endpoint_base + str(user_email) + "/playlists/list"
     headers1 = {"Authorization": my_token}
     info1_json = requests.get(endpoint1, headers=headers1).json()
-
     info1_str = json.dumps(info1_json)
     info1_dict = json.loads(info1_str)
+    print("aaaaaaaaaaa", info1_dict)
     # print("uid_from_email_info = ", info1_dict)
     owner_uid = str(info1_dict["result"][0]["owner"]["uid"])
 
@@ -185,7 +183,7 @@ def uid_from_email(user_email: str) -> str:
 
 
 def add_recommendations(user_email: str, kind: int, n: int, revis: int):
-    print("n = ", n)
+    # print("n = ", n)
     endpoint1 = endpoint_base + user_email + "/playlists/" + str(kind) + "/recommendations?limit = [" + str(n) + "]"
     # data1 = {"visibility": "public", "title": "Playlist from bot"}
     headers1 = {"Authorization": my_token}
@@ -194,22 +192,15 @@ def add_recommendations(user_email: str, kind: int, n: int, revis: int):
     info1_str = json.dumps(info1_json)
     info1_dict = json.loads(info1_str)
 
-    # print(info1_dict)
-    # print(info1_dict["result"]["tracks"])
-
-
-    # track_amount = len(tracks_info)
-    # print("track_amount = ", track_amount)
-
     new_tracks = []
     for i in range(n):
         tr_id, al_id = info1_dict["result"]["tracks"][i]["id"], info1_dict["result"]["tracks"][i]["albums"][0]["id"]
         new_dict = {"id": tr_id, "albumId": al_id}
         new_tracks.append(new_dict)
 
-    print("\n AAAAAAAAAAA \n я зашел в новые трэки, вот они:", new_tracks, '\n')
+    # print("\n AAAAAAAAAAA \n я зашел в новые трэки, вот они:", new_tracks, '\n')
     diff = [{"op": "insert", "at": 0, "tracks": new_tracks}]
-    print("new_tracks = ", new_tracks)
+    # print("new_tracks = ", new_tracks)
     endpoint2 = "https://api.music.yandex.net/users/781749467/playlists/" + str(kind) + "/change"
     data2 = {"diff": json.dumps(diff), "revision": revis}
     headers2 = {"Authorization": my_token}
@@ -221,8 +212,10 @@ def creating_final(chat_id: int) -> str:
     endpoint1 = endpoint_base + "yampolskaya.eugenie/playlists/create"
     data1 = {"visibility": "public", "title": "Playlist from bot"}
     headers1 = {"Authorization": my_token}
-
+    # print('\n request \n')
     info1_json = requests.post(endpoint1, data=data1, headers=headers1).json()  # creating playlist
+    # print('info1_json = ', info1, '\n')
+    # info1_json = info1.json()
 
     info1_str = json.dumps(info1_json)
     info1_dict = json.loads(info1_str)
@@ -230,8 +223,8 @@ def creating_final(chat_id: int) -> str:
     new_pll_kind = str(info1_dict["result"]["kind"])
     revis = info1_dict["result"]["revision"]
 
-    ratings = user_rank()
-    print("ratings = ", ratings)
+    # ratings = user_rank()
+    # print("ratings = ", ratings)
     # print("\nЩа будут айдишки сессий \n")
     # cursor.execute("SELECT ses_id FROM sessions")
     # idss = cursor.fetchall()
@@ -248,7 +241,7 @@ def creating_final(chat_id: int) -> str:
     num_results = len(results)
     # print(f"Number of results: {num_results}")
     print(f"Results: {results}")
-
+    n: int = 0
     list_of_all_tracks = []
     for row in results:
         # print("рас-рас\n")
@@ -261,7 +254,7 @@ def creating_final(chat_id: int) -> str:
         info_d = json.loads(info_str)
         track_count = info_d["result"]["trackCount"]
         print("trackCount = ", track_count)
-        n = 0
+        n = track_count/5
         skip_iterations = set(random.sample(range(track_count), n))
         i = 0
         while i < track_count:
@@ -272,7 +265,7 @@ def creating_final(chat_id: int) -> str:
                 print(new_dict, "песня", i)
             i += 1
 
-    print("i =", i)
+        print("i =", i)
     diff = [{"op": "insert", "at": 0, "tracks": list_of_all_tracks}]
     # print(diff)
 
@@ -282,8 +275,6 @@ def creating_final(chat_id: int) -> str:
 
     requests.post(url=endpoint2, data=data2, headers=headers2).json()
     revis += 1
-    n = math.ceil(i/3)
-    print("n =", n)
     add_recommendations("781749467", int(new_pll_kind), n, revis)
     return "https://music.yandex.ru/users/yampolskaya.eugenie/playlists/" + new_pll_kind + "?utm_medium=copy_link"
 
@@ -291,7 +282,7 @@ def creating_final(chat_id: int) -> str:
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: types.Message):
     chat_id = message.chat.id
-    bot.session._trace_configs = [trace_config]
+    # bot.session._trace_configs = [trace_config]
     await message.reply("Hello!\n I am a music bot, i can create a new playlist for your company.\
     Please text me how long do you want to listen to music. After that you can just sand all music,\
      by one or a whole playlist together! Just command me '/finish' and i'll sendback your new prepeared playlist!")
@@ -314,16 +305,16 @@ async def send_bye(message: types.Message):
     print("got finish")
 
 
-@dp.message_handler(regexp='https://api.music.yandex.net')
-async def handle_message(message: Message):
-    print("keyboard start")
-    # создаем инлайн-клавиатуру
-    keyboard = InlineKeyboardMarkup(row_width=2)
-    keyboard.add(InlineKeyboardButton(text='nice', callback_data='like'),
-                 InlineKeyboardButton(text='not nice..', callback_data='dislike'))
-
-    # отправляем сообщение с инлайн-клавиатурой
-    await bot.send_message(chat_id=message.chat.id, text='Выберите действие:', reply_markup=keyboard)
+# @dp.message_handler(regexp='https://api.music.yandex.net')
+# async def handle_message(message: Message):
+#     print("keyboard start")
+#     # создаем инлайн-клавиатуру
+#     keyboard = InlineKeyboardMarkup(row_width=2)
+#     keyboard.add(InlineKeyboardButton(text='nice', callback_data='like'),
+#                  InlineKeyboardButton(text='not nice..', callback_data='dislike'))
+#
+#     # отправляем сообщение с инлайн-клавиатурой
+#     await bot.send_message(chat_id=message.chat.id, text='Выберите действие:', reply_markup=keyboard)
 
 
 async def get_user_id_by_message_id(bot, chat_id, message_id):
@@ -332,17 +323,17 @@ async def get_user_id_by_message_id(bot, chat_id, message_id):
     return user.user.id
 
 
-@dp.message_handler(commands=['rang'])
-async def rank_command_handler(message: types.Message):
-    # Получаем список пользователей и их оценок с помощью ранее написанной функции
-    users_ratings = user_rank()
-    print("user_rank = ", user_rank())
-    # Создаем сообщение с списком пользователей и их оценками
-    text = "Список пользователей и их оценки:\n\n"
-    for user, rating in users_ratings:
-        text += f"{user}: {rating}\n"
-
-    await message.answer(text)   # Отправляем сообщение с списком пользователей и их оценками
+# @dp.message_handler(commands=['rang'])
+# async def rank_command_handler(message: types.Message):
+#     # Получаем список пользователей и их оценок с помощью ранее написанной функции
+#     users_ratings = user_rank()
+#     print("user_rank = ", user_rank())
+#     # Создаем сообщение с списком пользователей и их оценками
+#     text = "Список пользователей и их оценки:\n\n"
+#     for user, rating in users_ratings:
+#         text += f"{user}: {rating}\n"
+#
+#     await message.answer(text)   # Отправляем сообщение с списком пользователей и их оценками
 
 
 @dp.message_handler(regexp='https://music.yandex.ru')
@@ -369,7 +360,7 @@ async def handle_message(message: types.Message):
     album_id = None
     message_text = message.text
     print("here")
-    if message.text.startswith("https://music.yandex.ru/users/"):
+    if message_text.startswith("https://music.yandex.ru/users/"):
         parts = message_text.split('/')
         user_email = parts[4]
         pll_kind = parts[6].split('?')[0]
@@ -464,6 +455,12 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     conn.commit()
     print("записал дизлайк")
     pass
+
+def del_from_bot():
+    endpoint1 = endpoint_base + "yampolskaya.eugenie/playlists/list"
+    headers1 = {"Authorization": my_token}
+    info1 = requests.get(endpoint1, headers=headers1)
+
 
 
 client = Client('y0_AgAAAAAumIzbAAAgQwAAAADbGftvzdzGGejhT96Ze_Lqx4dctLXppSI').init()
