@@ -300,9 +300,13 @@ def music_answer_callback(json_request):
 
 
 def uid_from_email(user_email: str) -> str:
-    endpoint1 = endpoint_base + str(user_email) + "/playlists/list"
+    print("alive")
+    endpoint1 = endpoint_base + 'users/' + str(user_email) + "/playlists/list"
     headers1 = {"Authorization": my_token}
-    info1_json = requests.get(endpoint1, headers=headers1).json()
+    print(endpoint1, headers1)
+    info1_json = requests.get(endpoint1, headers=headers1)
+    print('still', info1_json)
+    info1_json = info1_json.json()
     info1_str = json.dumps(info1_json)
     info1_dict = json.loads(info1_str)
     # print("uid_from_email_info = ", info1_dict)
@@ -474,12 +478,13 @@ def creating_final(chat_id: int) -> str:
     # info1_dict = yandex.create_playlist("PartyBot playlist")
     # print('\n finish yandex \n')
     print('in final')
-    endpoint1 = endpoint_base + "yampolskaya.eugenie/playlists/create"
+    endpoint1 = endpoint_base + "users/yampolskaya.eugenie/playlists/create"
     data1 = {"visibility": "public", "title": "Playlist from bot"}
     headers1 = {"Authorization": my_token}
 
-    info1_json = requests.post(endpoint1, data=data1, headers=headers1).json()  # creating playlist
-
+    info1_json = requests.post(endpoint1, data=data1, headers=headers1)  # creating playlist
+    print(info1_json)
+    info1_json = info1_json.json()
     info1_str = json.dumps(info1_json)
     info1_dict = json.loads(info1_str)
 
@@ -516,9 +521,11 @@ def creating_final(chat_id: int) -> str:
         info_d = json.loads(info_str)
         track_count = info_d["result"]["trackCount"]
         print("trackCount = ", track_count)
-        n = track_count/5
+        n = round(track_count/5)
+        print('00000')
         skip_iterations = set(random.sample(range(track_count), n))
-        i = 0
+        i: int = 0
+        print('11111')
         while i < track_count:
             if i not in skip_iterations:
                 t_id, al_id = info_d["result"]["tracks"][i]["id"], info_d["result"]["tracks"][i]["albumId"]
