@@ -1,4 +1,4 @@
-main - version without sockets (using requests lib)
+main - version without sockets (using requests lib for everything)
 
 vers1 - version with low-leveled sockets
 
