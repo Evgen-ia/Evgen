@@ -9,8 +9,6 @@ import random
 import gzip
 import os
 
-api_token = os.environ.get('API_TOKEN')
-
 import requests
 
 logging.basicConfig(level=logging.DEBUG)
