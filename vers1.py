@@ -7,6 +7,9 @@ from threading import Thread
 import math
 import random
 import gzip
+import os
+
+api_token = os.environ.get('API_TOKEN')
 
 import requests
 
@@ -21,10 +24,10 @@ requests_log.propagate = True
 conn = sqlite3.connect('/home/evgenia//musicparty/my_db.db')
 cursor = conn.cursor()
 
-API_TOKEN = '5689948994:AAF2t_F-XVKejZvyHe_h0nH_bxDwsrxJS64'
+API_TOKEN = os.environ.get('ApiToken')  # env var
 
 endpoint_base = "https://music.yandex.net/"
-my_token = "OAuth y0_AgAAAAAumIzbAAAgQwAAAADbGftvzdzGGejhT96Ze_Lqx4dctLXppSI"
+my_token = os.environ.get('MyToken')   # env var
 
 cursor.execute('''DROP TABLE IF EXISTS "Users"''')
 cursor.execute('''CREATE TABLE IF NOT EXISTS "Users" (
