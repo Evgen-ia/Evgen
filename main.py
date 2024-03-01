@@ -4,6 +4,7 @@ import sqlite3
 import logging
 import math
 import random
+import os
 
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram import Bot, Dispatcher, executor, types
@@ -12,32 +13,10 @@ from yandex_music import Client
 
 import aiohttp
 
-#
-# async def on_request_start(
-#         session, trace_config_ctx, params):
-#     print(params)
-#
-#
-# async def on_request_end(session, trace_config_ctx, params):
-#     print("Ending request")
-#
-# trace_config = aiohttp.TraceConfig()
-# trace_config.on_request_start.append(on_request_start)
-# trace_config.on_request_end.append(on_request_end)
-
-# logging.basicConfig(level=logging.DEBUG)
-#
-# # You must initialize logging, otherwise you'll not see debug output.
-# logging.basicConfig()
-# logging.getLogger().setLevel(logging.DEBUG)
-# requests_log = logging.getLogger("requests.packages.urllib3")
-# requests_log.setLevel(logging.DEBUG)
-# requests_log.propagate = True
-
-API_TOKEN = '5689948994:AAF2t_F-XVKejZvyHe_h0nH_bxDwsrxJS64'
+API_TOKEN = os.environ.get('ApiToken')
 
 endpoint_base = "https://api.music.yandex.net/users/"
-my_token = "OAuth y0_AgAAAAAumIzbAAAgQwAAAADbGftvzdzGGejhT96Ze_Lqx4dctLXppSI"
+my_token = os.environ.get('MyToken')
  
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
